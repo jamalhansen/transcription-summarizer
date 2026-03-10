@@ -8,9 +8,56 @@ from itertools import groupby
 from pathlib import Path
 
 from config import DEFAULT_NOTE_DIR, DEFAULT_TEMPLATE_PATH, resolve_input_dir, resolve_vault_path
-from daily_note import append_to_note, get_note_path, new_note_base
 from extractor import ExtractionResult, extract
-from providers import PROVIDERS
+from local_first_common.obsidian import (
+    append_to_daily_note,
+    get_daily_note_path,
+    render_obsidian_template,
+)
+from local_first_common.providers import (
+    AnthropicProvider,
+    DeepSeekProvider,
+    GroqProvider,
+    OllamaProvider,
+)
+
+# Map "local" -> OllamaProvider to preserve the original CLI default naming.
+PROVIDERS = {
+    "local": OllamaProvider,
+    "anthropic": AnthropicProvider,
+    "groq": GroqProvider,
+    "deepseek": DeepSeekProvider,
+}
+
+
+def get_note_path(vault_path: str, note_dir: str, note_date: date | None = None) -> Path:
+    """Return the path for a daily note file."""
+    d = note_date or date.today()
+    return get_daily_note_path(Path(vault_path), d, subdir=note_dir)
+
+
+def append_to_note(note_path: Path, content: str, template_path: str | None = None) -> None:
+    """Append a Voice Journal section to an existing or new daily note."""
+    tpl = Path(template_path).expanduser() if template_path else None
+    append_to_daily_note(
+        note_path,
+        "## Voice Journal\n\n" + content,
+        template_path=tpl,
+    )
+
+
+def new_note_base(note_path: Path, template_path: str | None) -> str:
+    """Return the base content for a new note (rendered template or fallback frontmatter)."""
+    if template_path:
+        tpl = Path(template_path).expanduser()
+        if tpl.exists():
+            try:
+                note_date = date.fromisoformat(note_path.stem[:10])
+            except ValueError:
+                note_date = date.today()
+            rendered = render_obsidian_template(tpl.read_text(encoding="utf-8"), note_date)
+            return rendered.rstrip() + "\n\n---\n\n"
+    return f"---\ndate: {date.today().isoformat()}\n---\n\n"
 
 
 def build_parser() -> argparse.ArgumentParser:

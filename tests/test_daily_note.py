@@ -6,7 +6,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from daily_note import append_to_note, get_note_path, render_obsidian_template
+from local_first_common.obsidian import get_daily_note_path, render_obsidian_template
+from voice_journal import append_to_note, get_note_path
 
 
 class TestGetNotePath:

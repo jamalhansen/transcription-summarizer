@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass, field
 
-from providers.base import BaseProvider
+from local_first_common.providers.base import BaseProvider
 
 SYSTEM_PROMPT = """\
 You are a voice memo interpreter. Your job is to process poorly transcribed voice memos in two steps.
