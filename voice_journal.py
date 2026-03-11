@@ -14,20 +14,10 @@ from local_first_common.obsidian import (
     get_daily_note_path,
     render_obsidian_template,
 )
-from local_first_common.providers import (
-    AnthropicProvider,
-    DeepSeekProvider,
-    GroqProvider,
-    OllamaProvider,
-)
+from local_first_common.providers import PROVIDERS as _PROVIDERS, OllamaProvider
 
-# Map "local" -> OllamaProvider to preserve the original CLI default naming.
-PROVIDERS = {
-    "local": OllamaProvider,
-    "anthropic": AnthropicProvider,
-    "groq": GroqProvider,
-    "deepseek": DeepSeekProvider,
-}
+# "local" is a legacy alias preserved for backward compatibility with existing CLI usage
+PROVIDERS = {**_PROVIDERS, "local": OllamaProvider}
 
 
 def get_note_path(vault_path: str, note_dir: str, note_date: date | None = None) -> Path:
