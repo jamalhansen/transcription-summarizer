@@ -14,10 +14,7 @@ from local_first_common.obsidian import (
     get_daily_note_path,
     render_obsidian_template,
 )
-from local_first_common.providers import PROVIDERS as _PROVIDERS, OllamaProvider
-
-# "local" is a legacy alias preserved for backward compatibility with existing CLI usage
-PROVIDERS = {**_PROVIDERS, "local": OllamaProvider}
+from local_first_common.providers import PROVIDERS
 
 
 def get_note_path(vault_path: str, note_dir: str, note_date: date | None = None) -> Path:
@@ -174,8 +171,6 @@ def main():
     if not args.dry_run and not vault_path.exists():
         print(f"Error: vault path not found: {vault_path}", file=sys.stderr)
         sys.exit(1)
-
-    note_path = get_note_path(str(vault_path), args.note_dir, note_date)
 
     # Build provider
     provider_cls = PROVIDERS[args.provider]
