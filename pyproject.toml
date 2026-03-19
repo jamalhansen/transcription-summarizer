@@ -6,12 +6,15 @@ requires-python = ">=3.12"
 dependencies = [
     "anthropic>=0.84.0",
     "groq>=1.0.0",
+    "local-first-common",
     "openai>=2.24.0",
     "requests>=2.32.5",
-    "local-first-common @ git+https://github.com/jamalhansen/local-first-common.git@main",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
 ]
+
+[tool.uv.sources]
+local-first-common = { git = "https://github.com/jamalhansen/local-first-common.git", branch = "main" }

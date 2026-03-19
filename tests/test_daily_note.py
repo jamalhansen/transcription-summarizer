@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from local_first_common.obsidian import render_obsidian_template
-from voice_journal import append_to_note, get_note_path
+from main import append_to_note, get_note_path
 
 
 class TestGetNotePath:
