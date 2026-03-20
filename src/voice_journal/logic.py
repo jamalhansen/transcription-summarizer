@@ -7,8 +7,8 @@ from datetime import date
 from itertools import groupby
 from pathlib import Path
 
-from config import DEFAULT_NOTE_DIR, DEFAULT_TEMPLATE_PATH, resolve_input_dir, resolve_vault_path
-from extractor import ExtractionResult, extract
+from .config import DEFAULT_NOTE_DIR, DEFAULT_TEMPLATE_PATH, resolve_input_dir, resolve_vault_path
+from .extractor import ExtractionResult, extract
 from local_first_common.obsidian import (
     append_to_daily_note,
     get_daily_note_path,
