@@ -29,35 +29,35 @@ uv sync
 
 ```bash
 # Preview output without writing anything (uses local Ollama by default)
-uv run python voice_journal.py --dry-run
+uv run python src/main.py --dry-run
 
 # Process and write to your Obsidian vault
-uv run python voice_journal.py
+uv run python src/main.py
 
 # Use Anthropic's Claude instead
-uv run python voice_journal.py --provider anthropic
+uv run python src/main.py --provider anthropic
 
 # Process a single file
-uv run python voice_journal.py --file ~/Documents/Voice/memo.txt --dry-run
+uv run python src/main.py --file ~/Documents/Voice/memo.txt --dry-run
 ```
 
 ## Providers
 
+All tools in this series share a common set of CLI flags for model management via [local-first-common](https://github.com/jamalhansen/local-first-common).
+
 | Provider | Flag | Default Model | Requires |
 |---|---|---|---|
-| Ollama (local) | `--provider local` | `llama3.2:3b` | [Ollama](https://ollama.com) running locally |
-| Anthropic | `--provider anthropic` | `claude-haiku-4-5-20251001` | `ANTHROPIC_API_KEY` |
+| Ollama (local) | `--provider ollama` | `phi4-mini` | [Ollama](https://ollama.com) running locally |
+| Anthropic | `--provider anthropic` | `claude-3-5-haiku-latest` | `ANTHROPIC_API_KEY` |
 | Groq | `--provider groq` | `llama-3.3-70b-versatile` | `GROQ_API_KEY` |
 | DeepSeek | `--provider deepseek` | `deepseek-chat` | `DEEPSEEK_API_KEY` |
 
 Override the model for any provider with `--model`:
 
 ```bash
-uv run python voice_journal.py --provider local --model llama3.1:8b
-uv run python voice_journal.py --provider anthropic --model claude-sonnet-4-5-20251001
+uv run python src/main.py --provider ollama --model llama3.2:3b
+uv run python src/main.py --provider anthropic --model claude-3-5-sonnet-latest
 ```
-
-If you specify an invalid model name, the tool will list known options and (for cloud providers) link to the official model docs.
 
 ## Configuration
 
@@ -70,7 +70,6 @@ If you specify an invalid model name, the tool will list known options and (for 
 | `ANTHROPIC_API_KEY` | Anthropic API key | — |
 | `GROQ_API_KEY` | Groq API key | — |
 | `DEEPSEEK_API_KEY` | DeepSeek API key | — |
-| `OLLAMA_HOST` | Ollama server URL | `http://localhost:11434` |
 
 Add these to your shell profile or a `.env` file.
 
@@ -90,12 +89,12 @@ If no template is found, a minimal frontmatter block is used instead.
 ## CLI Reference
 
 ```
-uv run python voice_journal.py [OPTIONS]
+uv run python src/main.py [OPTIONS]
 ```
 
 | Argument | Short | Default | Description |
 |---|---|---|---|
-| `--provider` | `-p` | `local` | LLM backend: `local`, `anthropic`, `groq`, `deepseek` |
+| `--provider` | `-p` | `ollama` | LLM backend: `ollama`, `anthropic`, `groq`, `deepseek`, `gemini` |
 | `--model` | `-m` | provider default | Override the model for the chosen provider |
 | `--dry-run` | `-n` | false | Preview full note output without writing or moving files |
 | `--input-dir` | `-i` | iCloud Documents/Voice/ | Directory containing transcription files |
@@ -103,12 +102,13 @@ uv run python voice_journal.py [OPTIONS]
 | `--vault-path` | `-v` | `$OBSIDIAN_VAULT_PATH` | Path to your Obsidian vault root |
 | `--note-dir` | `-d` | `Timeline` | Subdirectory within vault for daily notes |
 | `--date` | | today | Override the date for the daily note (YYYY-MM-DD) |
-| `--verbose` | | false | Print raw transcription and reconstructed text |
+| `--verbose` | | false | Show extra debug output |
+| `--debug` | | false | Show raw prompts and LLM responses |
 
 ## Example Output
 
 ```
-$ uv run python voice_journal.py --provider anthropic --dry-run --file memo.txt
+$ uv run python src/main.py --provider anthropic --dry-run --file memo.txt
 
 Processing: memo.txt
 
@@ -140,20 +140,21 @@ Tests are organized one file per module under `tests/`, with fixture files in `t
 
 ## Project Structure
 
+This tool follows the [Local-First AI project blueprint](https://github.com/jamalhansen/local-first-common).
+
 ```
-voice_journal.py        # CLI entrypoint
-extractor.py            # LLM prompt + response parser
-daily_note.py           # Obsidian note append/create + template rendering
-config.py               # Defaults and path resolution
-providers/
-  base.py               # Abstract BaseProvider interface
-  local.py              # Ollama
-  anthropic_provider.py # Anthropic Claude
-  groq_provider.py      # Groq
-  deepseek_provider.py  # DeepSeek (OpenAI-compatible)
-tests/
-  test_extractor.py
-  test_daily_note.py
-  test_providers.py
-  fixtures/
+transcription-summarizer/
+├── src/
+│   ├── main.py          # Typer CLI entry point
+│   ├── logic.py         # Core processing logic
+│   ├── schema.py        # Pydantic output models
+│   ├── prompts.py       # System and user prompt builders
+│   ├── display.py       # Rich-based terminal formatting
+│   ├── config.py        # Defaults and path resolution
+│   ├── extractor.py     # LLM response parser
+│   └── daily_note.py    # Obsidian note management
+├── pyproject.toml       # Managed by uv
+└── tests/
+    ├── test_main.py     # CLI integration tests via MockProvider
+    └── ...
 ```
