@@ -136,7 +136,7 @@ def test_main_write_loop(mock_append, mock_proc, mock_collect, mock_vault, tmp_p
         patch("voice_journal.logic.PROVIDERS", {"local": MagicMock()}),
         patch.object(Path, "rename") as mock_rename
     ):
-        logic.main(dry_run=False, vault_path=str(tmp_path))
+        logic.main(dry_run=False, no_llm=False, vault_path=str(tmp_path))
     
     mock_append.assert_called_once()
     mock_rename.assert_called_once()
