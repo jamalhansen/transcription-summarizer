@@ -9,6 +9,7 @@ dependencies = [
     "local-first-common",
     "openai>=2.24.0",
     "requests>=2.32.5",
+    "typer>=0.24.1",
 ]
 
 [dependency-groups]

@@ -1,4 +1,4 @@
-from voice_journal.logic import main
+from voice_journal.logic import app
 
 if __name__ == "__main__":
-    main()
+    app()
