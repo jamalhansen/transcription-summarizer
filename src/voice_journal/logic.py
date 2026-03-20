@@ -15,6 +15,10 @@ from local_first_common.obsidian import (
     get_daily_note_path,
     render_obsidian_template,
 )
+from local_first_common.cli import (
+    dry_run_option,
+    no_llm_option,
+)
 from local_first_common.providers import PROVIDERS
 
 app = typer.Typer(add_completion=False)
@@ -107,7 +111,8 @@ def process_file(file_path: Path, provider, verbose: bool):
 def main(
     provider: Annotated[str, typer.Option("--provider", "-p", help="LLM backend to use")] = "local",
     model: Annotated[Optional[str], typer.Option("--model", "-m", help="Override the default model for the chosen provider")] = None,
-    dry_run: Annotated[bool, typer.Option("--dry-run", "-n", help="Print output to stdout instead of writing to file")] = False,
+    dry_run: Annotated[bool, dry_run_option()] = False,
+    no_llm: Annotated[bool, no_llm_option()] = False,
     input_dir: Annotated[Optional[str], typer.Option("--input-dir", "-i", help="Directory containing voice transcription .txt files")] = None,
     file: Annotated[Optional[str], typer.Option("--file", "-f", help="Process a single file instead of the whole directory")] = None,
     vault_path: Annotated[Optional[str], typer.Option("--vault-path", "-v", help="Path to the Obsidian vault root")] = None,
@@ -118,6 +123,9 @@ def main(
     if provider not in PROVIDERS:
         typer.echo(f"Error: unknown provider '{provider}'. Choose from: {', '.join(PROVIDERS.keys())}", err=True)
         raise typer.Exit(1)
+
+    if no_llm:
+        dry_run = True
 
     # Resolve note date
     note_date = None
@@ -135,12 +143,16 @@ def main(
         raise typer.Exit(1)
 
     # Build provider
-    provider_cls = PROVIDERS[provider]
-    try:
-        llm_provider = provider_cls(model=model)
-    except Exception as e:
-        typer.echo(f"Error initializing provider '{provider}': {e}", err=True)
-        raise typer.Exit(1)
+    if no_llm:
+        from local_first_common.testing import MockProvider
+        llm_provider = MockProvider()
+    else:
+        provider_cls = PROVIDERS[provider]
+        try:
+            llm_provider = provider_cls(model=model)
+        except Exception as e:
+            typer.echo(f"Error initializing provider '{provider}': {e}", err=True)
+            raise typer.Exit(1)
 
     files = collect_files(file, input_dir)
     if not files:

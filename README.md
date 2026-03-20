@@ -29,7 +29,7 @@ uv sync
 
 ```bash
 # Preview output without writing anything (uses local Ollama by default)
-uv run python src/main.py --dry-run
+uv run python src/main.py --dry-run -n: Call LLM but do not save results. Print to stdout.
 
 # Process and write to your Obsidian vault
 uv run python src/main.py
@@ -38,7 +38,7 @@ uv run python src/main.py
 uv run python src/main.py --provider anthropic
 
 # Process a single file
-uv run python src/main.py --file ~/Documents/Voice/memo.txt --dry-run
+uv run python src/main.py --file ~/Documents/Voice/memo.txt --dry-run -n: Call LLM but do not save results. Print to stdout.
 ```
 
 ## Providers
@@ -96,7 +96,7 @@ uv run python src/main.py [OPTIONS]
 |---|---|---|---|
 | `--provider` | `-p` | `ollama` | LLM backend: `ollama`, `anthropic`, `groq`, `deepseek`, `gemini` |
 | `--model` | `-m` | provider default | Override the model for the chosen provider |
-| `--dry-run` | `-n` | false | Preview full note output without writing or moving files |
+| `--dry-run -n: Call LLM but do not save results. Print to stdout.
 | `--input-dir` | `-i` | iCloud Documents/Voice/ | Directory containing transcription files |
 | `--file` | `-f` | — | Process a single file instead of the whole directory |
 | `--vault-path` | `-v` | `$OBSIDIAN_VAULT_PATH` | Path to your Obsidian vault root |
@@ -108,7 +108,7 @@ uv run python src/main.py [OPTIONS]
 ## Example Output
 
 ```
-$ uv run python src/main.py --provider anthropic --dry-run --file memo.txt
+$ uv run python src/main.py --provider anthropic --dry-run -n: Call LLM but do not save results. Print to stdout.
 
 Processing: memo.txt
 
