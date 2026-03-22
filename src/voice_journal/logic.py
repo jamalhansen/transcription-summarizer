@@ -101,7 +101,7 @@ def process_file(file_path: Path, provider, verbose: bool):
         typer.echo(f"\n--- Raw Transcription ---\n{raw.strip()}\n")
 
     try:
-        with timed_run("transcription-summarizer", provider.model, source_location=str(file_path)) as run:
+        with timed_run("transcription-summarizer", getattr(provider, "model", None), source_location=str(file_path)) as run:
             result = extract(provider, raw)
             run.item_count = 1
     except Exception as e:
