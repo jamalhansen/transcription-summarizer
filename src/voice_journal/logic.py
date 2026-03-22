@@ -20,7 +20,9 @@ from local_first_common.cli import (
     no_llm_option,
 )
 from local_first_common.providers import PROVIDERS
-from local_first_common.tracking import timed_run
+from local_first_common.tracking import register_tool, timed_run
+
+_TOOL = register_tool("transcription-summarizer")
 
 app = typer.Typer(add_completion=False)
 
