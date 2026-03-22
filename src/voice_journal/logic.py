@@ -20,6 +20,7 @@ from local_first_common.cli import (
     no_llm_option,
 )
 from local_first_common.providers import PROVIDERS
+from local_first_common.tracking import timed_run
 
 app = typer.Typer(add_completion=False)
 
@@ -51,7 +52,11 @@ def new_note_base(note_path: Path, template_path: str | None) -> str:
                 note_date = date.today()
             rendered = render_obsidian_template(tpl.read_text(encoding="utf-8"), note_date)
             return rendered.rstrip() + "\n\n---\n\n"
-    return f"---\ndate: {date.today().isoformat()}\n---\n\n"
+    try:
+        note_date = date.fromisoformat(note_path.stem[:10])
+    except ValueError:
+        note_date = date.today()
+    return f"---\ndate: {note_date.isoformat()}\n---\n\n"
 
 
 def collect_files(file: str | None, input_dir: str | None) -> list[Path]:
@@ -96,7 +101,9 @@ def process_file(file_path: Path, provider, verbose: bool):
         typer.echo(f"\n--- Raw Transcription ---\n{raw.strip()}\n")
 
     try:
-        result = extract(provider, raw)
+        with timed_run("transcription-summarizer", provider.model, source_location=str(file_path)) as run:
+            result = extract(provider, raw)
+            run.item_count = 1
     except Exception as e:
         typer.echo(f"Error processing {file_path.name}: {e}", err=True)
         return None
