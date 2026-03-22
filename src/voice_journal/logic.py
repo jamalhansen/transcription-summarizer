@@ -104,6 +104,8 @@ def process_file(file_path: Path, provider, verbose: bool):
         with timed_run("transcription-summarizer", getattr(provider, "model", None), source_location=str(file_path)) as run:
             result = extract(provider, raw)
             run.item_count = 1
+            run.input_tokens = getattr(provider, "input_tokens", None) or None
+            run.output_tokens = getattr(provider, "output_tokens", None) or None
     except Exception as e:
         typer.echo(f"Error processing {file_path.name}: {e}", err=True)
         return None
