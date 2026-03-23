@@ -18,6 +18,8 @@ from local_first_common.obsidian import (
 from local_first_common.cli import (
     dry_run_option,
     no_llm_option,
+    resolve_dry_run,
+    resolve_provider,
 )
 from local_first_common.providers import PROVIDERS
 from local_first_common.tracking import register_tool, timed_run
@@ -135,8 +137,7 @@ def main(
         typer.echo(f"Error: unknown provider '{provider}'. Choose from: {', '.join(PROVIDERS.keys())}", err=True)
         raise typer.Exit(1)
 
-    if no_llm:
-        dry_run = True
+    dry_run = resolve_dry_run(dry_run, no_llm)
 
     # Resolve note date
     note_date = None
@@ -154,16 +155,11 @@ def main(
         raise typer.Exit(1)
 
     # Build provider
-    if no_llm:
-        from local_first_common.testing import MockProvider
-        llm_provider = MockProvider()
-    else:
-        provider_cls = PROVIDERS[provider]
-        try:
-            llm_provider = provider_cls(model=model)
-        except Exception as e:
-            typer.echo(f"Error initializing provider '{provider}': {e}", err=True)
-            raise typer.Exit(1)
+    try:
+        llm_provider = resolve_provider(PROVIDERS, provider, model, no_llm=no_llm)
+    except Exception as e:
+        typer.echo(f"Error initializing provider '{provider}': {e}", err=True)
+        raise typer.Exit(1)
 
     files = collect_files(file, input_dir)
     if not files:
