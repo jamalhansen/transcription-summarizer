@@ -27,8 +27,13 @@ uv sync
 
 ## Quick Start
 
+The installed entry point is `voice-journal`. After `uv sync`:
+
 ```bash
 # Preview output without writing anything (uses local Ollama by default)
+voice-journal --dry-run
+
+# Or via uv run:
 uv run python src/main.py --dry-run
 
 # Process and write to your Obsidian vault
