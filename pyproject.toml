@@ -4,10 +4,7 @@ version = "0.1.0"
 description = "Process voice memo transcriptions into structured Obsidian daily note entries"
 requires-python = ">=3.12"
 dependencies = [
-    "anthropic>=0.84.0",
-    "groq>=1.0.0",
-    "local-first-common",
-    "openai>=2.24.0",
+    "local-first-common[anthropic,groq,deepseek]",
     "requests>=2.32.5",
     "typer>=0.24.1",
 ]
