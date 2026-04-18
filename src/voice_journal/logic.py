@@ -124,8 +124,8 @@ def process_file(file_path: Path, provider, verbose: bool):
 def main(
     provider: Annotated[str, typer.Option("--provider", "-p", help="LLM backend to use")] = "local",
     model: Annotated[Optional[str], typer.Option("--model", "-m", help="Override the default model for the chosen provider")] = None,
-    dry_run: bool = dry_run_option(),
-    no_llm: bool = no_llm_option(),
+    dry_run: Annotated[bool, dry_run_option()] = False,
+    no_llm: Annotated[bool, no_llm_option()] = False,
     input_dir: Annotated[Optional[str], typer.Option("--input-dir", "-i", help="Directory containing voice transcription .txt files")] = None,
     file: Annotated[Optional[str], typer.Option("--file", "-f", help="Process a single file instead of the whole directory")] = None,
     vault_path: Annotated[Optional[str], typer.Option("--vault-path", "-v", help="Path to the Obsidian vault root")] = None,
