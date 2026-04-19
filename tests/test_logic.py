@@ -8,11 +8,28 @@ import pytest
 import typer
 from voice_journal import logic
 from voice_journal.extractor import ExtractionResult
+from voice_journal.logic import TranscriptionError, ProviderSetupError, ExtractionError
+
+
+class TestTypedErrors:
+    def test_error_hierarchy(self):
+        assert issubclass(ProviderSetupError, TranscriptionError)
+        assert issubclass(ExtractionError, TranscriptionError)
+
+    def test_provider_setup_error_message(self):
+        err = ProviderSetupError("bad provider")
+        assert "bad provider" in str(err)
+
+    def test_extraction_error_message(self):
+        err = ExtractionError("parse failed")
+        assert "parse failed" in str(err)
 
 
 def test_get_note_path():
     """Returns correct daily note path."""
-    with patch("voice_journal.logic.get_daily_note_path", return_value=Path("/v/2026-03-20.md")) as mock_get:
+    with patch(
+        "voice_journal.logic.get_daily_note_path", return_value=Path("/v/2026-03-20.md")
+    ) as mock_get:
         p = logic.get_note_path("/v", "d", date(2026, 3, 20))
         assert p == Path("/v/2026-03-20.md")
         mock_get.assert_called_once_with(Path("/v"), date(2026, 3, 20), subdir="d")
@@ -48,7 +65,7 @@ def test_collect_files_directory(tmp_path):
     (tmp_path / "b.txt").write_text("b")
     (tmp_path / "a.txt").write_text("a")
     (tmp_path / "other.jpg").write_text("not text")
-    
+
     with patch("voice_journal.logic.resolve_input_dir", return_value=tmp_path):
         res = logic.collect_files(None, str(tmp_path))
         assert [f.name for f in res] == ["a.txt", "b.txt"]
@@ -56,7 +73,9 @@ def test_collect_files_directory(tmp_path):
 
 def test_file_date_from_name():
     """Extracts date from YYYY-MM-DD prefix."""
-    assert logic.file_date(Path("2026-03-21-memo.txt"), date.today()) == date(2026, 3, 21)
+    assert logic.file_date(Path("2026-03-21-memo.txt"), date.today()) == date(
+        2026, 3, 21
+    )
 
 
 def test_file_date_fallback():
@@ -79,7 +98,7 @@ def test_process_file_success(mock_extract, tmp_path):
     f = tmp_path / "memo.txt"
     f.write_text("raw text")
     mock_extract.return_value = ExtractionResult(reconstructed="fixed")
-    
+
     res = logic.process_file(f, MagicMock(), False)
     assert res.reconstructed == "fixed"
     mock_extract.assert_called_once()
@@ -94,10 +113,10 @@ def test_main_dry_run(mock_proc, mock_collect, mock_vault, tmp_path):
     f = tmp_path / "2026-03-20-memo.txt"
     mock_collect.return_value = [f]
     mock_proc.return_value = ExtractionResult(reconstructed="r", thoughts=["t"])
-    
+
     with patch("voice_journal.logic.PROVIDERS", {"local": MagicMock()}):
-        logic.main(dry_run=True, vault_path=str(tmp_path))
-    
+        logic.main(provider="local", dry_run=True, vault_path=str(tmp_path))
+
     mock_collect.assert_called_once()
     mock_proc.assert_called_once()
 
@@ -131,12 +150,14 @@ def test_main_write_loop(mock_append, mock_proc, mock_collect, mock_vault, tmp_p
     f = tmp_path / "2026-03-20-memo.txt"
     mock_collect.return_value = [f]
     mock_proc.return_value = ExtractionResult(reconstructed="r", thoughts=["t"])
-    
+
     with (
         patch("voice_journal.logic.PROVIDERS", {"local": MagicMock()}),
-        patch.object(Path, "rename") as mock_rename
+        patch.object(Path, "rename") as mock_rename,
     ):
-        logic.main(dry_run=False, no_llm=False, vault_path=str(tmp_path))
-    
+        logic.main(
+            provider="local", dry_run=False, no_llm=False, vault_path=str(tmp_path)
+        )
+
     mock_append.assert_called_once()
     mock_rename.assert_called_once()
