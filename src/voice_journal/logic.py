@@ -44,6 +44,7 @@ class ProviderSetupError(TranscriptionError):
 class ExtractionError(TranscriptionError):
     """Raised when the LLM extraction call fails."""
 
+
 app = typer.Typer(add_completion=False)
 
 
