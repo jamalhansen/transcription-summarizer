@@ -28,7 +28,7 @@ class TestTypedErrors:
 def test_get_note_path():
     """Returns correct daily note path."""
     with patch(
-        "voice_journal.logic.get_daily_note_path", return_value=Path("/v/2026-03-20.md")
+        "voice_journal.core.get_daily_note_path", return_value=Path("/v/2026-03-20.md")
     ) as mock_get:
         p = logic.get_note_path("/v", "d", date(2026, 3, 20))
         assert p == Path("/v/2026-03-20.md")
@@ -37,7 +37,7 @@ def test_get_note_path():
 
 def test_append_to_note():
     """Appends to daily note with header."""
-    with patch("voice_journal.logic.append_to_daily_note") as mock_append:
+    with patch("voice_journal.core.append_to_daily_note") as mock_append:
         logic.append_to_note(Path("/p"), "content", "/tpl")
         mock_append.assert_called_once()
         args = mock_append.call_args[0]
@@ -66,7 +66,7 @@ def test_collect_files_directory(tmp_path):
     (tmp_path / "a.txt").write_text("a")
     (tmp_path / "other.jpg").write_text("not text")
 
-    with patch("voice_journal.logic.resolve_input_dir", return_value=tmp_path):
+    with patch("voice_journal.cli.resolve_input_dir", return_value=tmp_path):
         res = logic.collect_files(None, str(tmp_path))
         assert [f.name for f in res] == ["a.txt", "b.txt"]
 
@@ -92,7 +92,7 @@ def test_process_file_empty(tmp_path):
     assert res is None
 
 
-@patch("voice_journal.logic.extract")
+@patch("voice_journal.cli.extract")
 def test_process_file_success(mock_extract, tmp_path):
     """Calls extract and returns result."""
     f = tmp_path / "memo.txt"
@@ -104,9 +104,9 @@ def test_process_file_success(mock_extract, tmp_path):
     mock_extract.assert_called_once()
 
 
-@patch("voice_journal.logic.resolve_vault_path")
-@patch("voice_journal.logic.collect_files")
-@patch("voice_journal.logic.process_file")
+@patch("voice_journal.cli.resolve_vault_path")
+@patch("voice_journal.cli.collect_files")
+@patch("voice_journal.cli.process_file")
 def test_main_dry_run(mock_proc, mock_collect, mock_vault, tmp_path):
     """Dry run orchestration."""
     mock_vault.return_value = tmp_path
@@ -114,7 +114,7 @@ def test_main_dry_run(mock_proc, mock_collect, mock_vault, tmp_path):
     mock_collect.return_value = [f]
     mock_proc.return_value = ExtractionResult(reconstructed="r", thoughts=["t"])
 
-    with patch("voice_journal.logic.PROVIDERS", {"local": MagicMock()}):
+    with patch("voice_journal.cli.PROVIDERS", {"local": MagicMock()}):
         logic.main(provider="local", dry_run=True, vault_path=str(tmp_path))
 
     mock_collect.assert_called_once()
@@ -129,7 +129,7 @@ def test_collect_files_not_found():
 
 def test_main_invalid_provider():
     """Typer.Exit on unknown provider."""
-    with patch("voice_journal.logic.PROVIDERS", {}):
+    with patch("voice_journal.cli.PROVIDERS", {}):
         with pytest.raises(typer.Exit):
             logic.main(provider="unknown")
 
@@ -140,10 +140,10 @@ def test_main_invalid_date():
         logic.main(override_date="bad-date")
 
 
-@patch("voice_journal.logic.resolve_vault_path")
-@patch("voice_journal.logic.collect_files")
-@patch("voice_journal.logic.process_file")
-@patch("voice_journal.logic.append_to_note")
+@patch("voice_journal.cli.resolve_vault_path")
+@patch("voice_journal.cli.collect_files")
+@patch("voice_journal.cli.process_file")
+@patch("voice_journal.cli.append_to_note")
 def test_main_write_loop(mock_append, mock_proc, mock_collect, mock_vault, tmp_path):
     """Writing loop orchestration."""
     mock_vault.return_value = tmp_path
@@ -152,7 +152,7 @@ def test_main_write_loop(mock_append, mock_proc, mock_collect, mock_vault, tmp_p
     mock_proc.return_value = ExtractionResult(reconstructed="r", thoughts=["t"])
 
     with (
-        patch("voice_journal.logic.PROVIDERS", {"local": MagicMock()}),
+        patch("voice_journal.cli.PROVIDERS", {"local": MagicMock()}),
         patch.object(Path, "rename") as mock_rename,
     ):
         logic.main(

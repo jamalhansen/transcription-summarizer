@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
-voice-journal = "voice_journal.logic:app"
+voice-journal = "voice_journal.cli:app"
 
 [build-system]
 requires = ["hatchling"]
