@@ -155,7 +155,12 @@ def main(
 ) -> None:
     _TOOL_NAME = "transcription-summarizer"
     provider = get_setting(_TOOL_NAME, "provider", cli_val=provider, default="local")
-    model = get_setting(_TOOL_NAME, "model", cli_val=model, default=None)
+    model = get_setting(
+        _TOOL_NAME,
+        "model",
+        cli_val=model,
+        default="llama3.2:3b" if provider in ("local", "ollama") else None,
+    )
     if not all_files:
         all_files = bool(get_setting(_TOOL_NAME, "all", default=False))
 
