@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Voice Journal CLI — process garbled voice memo transcriptions into Obsidian daily notes."""
+"""Voice Journal CLI — turn voice memos (audio or text) into Obsidian daily note entries."""
 
 from datetime import date, datetime
 from itertools import groupby
@@ -32,7 +32,7 @@ from .core import (
     get_note_path,
     new_note_base,
 )
-from .extractor import ExtractionResult, extract
+from .extractor import extract
 from .transcribe import AUDIO_EXTENSIONS, DEFAULT_WHISPER_MODEL, transcribe_audio
 
 _TOOL = register_tool("transcription-summarizer")
@@ -61,8 +61,9 @@ def collect_files(file: str | None, input_dir: str | None) -> list[Path]:
     return files
 
 
-def process_file(file_path: Path, provider, verbose: bool, whisper_model: str):
-    """Extract content from a transcription (or audio) file. Returns ExtractionResult or None."""
+def process_file(file_path: Path, provider, verbose: bool, whisper_model: str) -> str | None:
+    """Turn a transcription (or audio) file into a cleaned journal entry. Returns the
+    entry's markdown, or None if the file was skipped (empty, or a per-file error)."""
     if file_path.suffix in AUDIO_EXTENSIONS:
         typer.echo(f"Transcribing: {file_path.name}")
         try:
@@ -100,24 +101,32 @@ def process_file(file_path: Path, provider, verbose: bool, whisper_model: str):
         return None
 
     if verbose:
-        typer.echo(f"--- Reconstructed ---\n{result.reconstructed}\n")
+        typer.echo(f"--- Journal Entry ---\n{result}\n")
 
     return result
 
 
-def archive_file(f: Path, result: ExtractionResult) -> Path:
+def archive_file(f: Path, entry: str) -> Path:
     """Move a processed input into its own processed/ subfolder.
 
-    For audio input, also writes the transcript alongside it -- for a text/md
-    input the transcript *was* the file, so there's nothing extra to save.
+    For audio input, also writes the finished journal entry alongside it -- something
+    to spot-check Whisper's + the LLM's output against later. For a text/md input the
+    entry's source *was* the file itself, so there's nothing extra to save.
     """
     processed_dir = f.parent / "processed"
     processed_dir.mkdir(exist_ok=True)
     dest = processed_dir / f.name
     f.rename(dest)
-    if f.suffix in AUDIO_EXTENSIONS and result.reconstructed:
-        (processed_dir / f"{f.stem}.txt").write_text(result.reconstructed, encoding="utf-8")
+    if f.suffix in AUDIO_EXTENSIONS and entry:
+        (processed_dir / f"{f.stem}.txt").write_text(entry, encoding="utf-8")
     return dest
+
+
+def combine_entries(entries: list[str]) -> str:
+    """Combine same-day entries as distinct blocks, not merged field-by-field --
+    each voice memo keeps its own shape rather than having its content interleaved
+    with unrelated memos from the same day."""
+    return "\n\n---\n\n".join(e for e in entries if e)
 
 
 @app.command()
@@ -169,7 +178,7 @@ def main(
         bool,
         typer.Option(
             "--verbose",
-            help="Print raw transcription and reconstructed text before extraction",
+            help="Print the raw transcript and the finished journal entry before writing",
         ),
     ] = False,
     all_files: Annotated[
@@ -244,7 +253,7 @@ def main(
         raise typer.Exit(0)
 
     fallback_date = note_date or datetime.now().astimezone().date()
-    results: list[tuple[Path, date, ExtractionResult]] = []
+    results: list[tuple[Path, date, str]] = []
     skipped = 0
 
     for f in files:
@@ -262,12 +271,7 @@ def main(
         )
         for d, group in dry_groups:
             n_path = get_note_path(str(resolved_vault), note_dir, d)
-            combined = ExtractionResult(reconstructed="")
-            for _, _, result in group:
-                combined.thoughts.extend(result.thoughts)
-                combined.actions.extend(result.actions)
-                combined.gratitude.extend(result.gratitude)
-            md = combined.to_markdown()
+            md = combine_entries([entry for _, _, entry in group])
             if not md:
                 continue
             if n_path.exists():
@@ -282,12 +286,7 @@ def main(
             typer.echo(preview)
     else:
         if all_files:
-            combined = ExtractionResult(reconstructed="")
-            for _, _, result in results:
-                combined.thoughts.extend(result.thoughts)
-                combined.actions.extend(result.actions)
-                combined.gratitude.extend(result.gratitude)
-            md = combined.to_markdown()
+            md = combine_entries([entry for _, _, entry in results])
             if md:
                 n_path = get_note_path(str(resolved_vault), note_dir, fallback_date)
                 append_to_note(n_path, md, template_path=DEFAULT_TEMPLATE_PATH)
@@ -298,12 +297,7 @@ def main(
         else:
             for d, group in groupby(results, key=lambda x: x[1]):
                 group = list(group)
-                combined = ExtractionResult(reconstructed="")
-                for _, _, result in group:
-                    combined.thoughts.extend(result.thoughts)
-                    combined.actions.extend(result.actions)
-                    combined.gratitude.extend(result.gratitude)
-                md = combined.to_markdown()
+                md = combine_entries([entry for _, _, entry in group])
                 if md:
                     n_path = get_note_path(str(resolved_vault), note_dir, d)
                     append_to_note(n_path, md, template_path=DEFAULT_TEMPLATE_PATH)

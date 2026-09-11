@@ -8,7 +8,6 @@ import pytest
 import typer
 
 from voice_journal import logic
-from voice_journal.extractor import ExtractionResult
 from voice_journal.logic import ExtractionError, ProviderSetupError, TranscriptionError
 
 
@@ -106,13 +105,13 @@ def test_process_file_empty(tmp_path):
 
 @patch("voice_journal.cli.extract")
 def test_process_file_success(mock_extract, tmp_path):
-    """Calls extract and returns result."""
+    """Calls extract and returns the finished entry."""
     f = tmp_path / "memo.txt"
     f.write_text("raw text")
-    mock_extract.return_value = ExtractionResult(reconstructed="fixed")
+    mock_extract.return_value = "fixed"
 
     res = logic.process_file(f, MagicMock(), False, "mlx-community/whisper-large-v3-turbo")
-    assert res.reconstructed == "fixed"
+    assert res == "fixed"
     mock_extract.assert_called_once()
 
 
@@ -123,14 +122,14 @@ def test_process_file_audio_transcribes_then_extracts(mock_transcribe, mock_extr
     f = tmp_path / "memo.m4a"
     f.write_bytes(b"fake audio")
     mock_transcribe.return_value = "what whisper heard"
-    mock_extract.return_value = ExtractionResult(reconstructed="fixed")
+    mock_extract.return_value = "fixed"
 
     res = logic.process_file(f, MagicMock(), False, "mlx-community/whisper-large-v3-turbo")
 
     mock_transcribe.assert_called_once_with(f, model="mlx-community/whisper-large-v3-turbo")
     mock_extract.assert_called_once()
     assert mock_extract.call_args[0][1] == "what whisper heard"
-    assert res.reconstructed == "fixed"
+    assert res == "fixed"
 
 
 @patch("voice_journal.cli.transcribe_audio")
@@ -148,28 +147,45 @@ def test_archive_file_moves_text_input_without_sidecar(tmp_path):
     """A text input's transcript *was* the file -- no extra sidecar to write."""
     f = tmp_path / "memo.txt"
     f.write_text("raw")
-    result = ExtractionResult(reconstructed="raw")
 
-    dest = logic.archive_file(f, result)
+    dest = logic.archive_file(f, "raw")
 
     assert dest == tmp_path / "processed" / "memo.txt"
     assert dest.exists()
     assert not (tmp_path / "processed" / "memo.txt.txt").exists()
 
 
-def test_archive_file_writes_transcript_sidecar_for_audio(tmp_path):
-    """Audio input also gets its reconstructed transcript saved alongside the archived audio."""
+def test_archive_file_writes_entry_sidecar_for_audio(tmp_path):
+    """Audio input also gets its finished journal entry saved alongside the archived audio."""
     f = tmp_path / "memo.m4a"
     f.write_bytes(b"fake audio")
-    result = ExtractionResult(reconstructed="what whisper heard, reconstructed")
 
-    dest = logic.archive_file(f, result)
+    dest = logic.archive_file(f, "what whisper heard, cleaned up")
 
     assert dest == tmp_path / "processed" / "memo.m4a"
     assert dest.exists()
     sidecar = tmp_path / "processed" / "memo.txt"
     assert sidecar.exists()
-    assert sidecar.read_text(encoding="utf-8") == "what whisper heard, reconstructed"
+    assert sidecar.read_text(encoding="utf-8") == "what whisper heard, cleaned up"
+
+
+class TestCombineEntries:
+    def test_joins_multiple_with_separator(self):
+        md = logic.combine_entries(["First memo.", "Second memo."])
+        assert md == "First memo.\n\n---\n\nSecond memo."
+
+    def test_single_entry_no_separator(self):
+        assert logic.combine_entries(["Only memo."]) == "Only memo."
+
+    def test_empty_entries_filtered_out(self):
+        md = logic.combine_entries(["First.", "", "Second."])
+        assert md == "First.\n\n---\n\nSecond."
+
+    def test_all_empty_returns_empty_string(self):
+        assert logic.combine_entries(["", ""]) == ""
+
+    def test_empty_list(self):
+        assert logic.combine_entries([]) == ""
 
 
 @patch("voice_journal.cli.resolve_vault_path")
@@ -180,7 +196,7 @@ def test_main_dry_run(mock_proc, mock_collect, mock_vault, tmp_path):
     mock_vault.return_value = tmp_path
     f = tmp_path / "2026-03-20-memo.txt"
     mock_collect.return_value = [f]
-    mock_proc.return_value = ExtractionResult(reconstructed="r", thoughts=["t"])
+    mock_proc.return_value = "a finished journal entry"
 
     with patch("voice_journal.cli.PROVIDERS", {"local": MagicMock()}):
         logic.main(provider="local", dry_run=True, vault_path=str(tmp_path))
@@ -216,7 +232,7 @@ def test_main_write_loop(mock_append, mock_proc, mock_collect, mock_vault, tmp_p
     mock_vault.return_value = tmp_path
     f = tmp_path / "2026-03-20-memo.txt"
     mock_collect.return_value = [f]
-    mock_proc.return_value = ExtractionResult(reconstructed="r", thoughts=["t"])
+    mock_proc.return_value = "a finished journal entry"
 
     with (
         patch("voice_journal.cli.PROVIDERS", {"local": MagicMock()}),
