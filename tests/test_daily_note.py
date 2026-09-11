@@ -1,18 +1,18 @@
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
-
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from local_first_common.obsidian import render_obsidian_template
+
 from voice_journal.logic import append_to_note, get_note_path
 
 
 class TestGetNotePath:
     def test_default_date(self, tmp_path):
         path = get_note_path(str(tmp_path), "Timeline")
-        assert path.name == f"{date.today().isoformat()}.md"
+        assert path.name == f"{datetime.now().astimezone().date().isoformat()}.md"
         assert path.parent.name == "Timeline"
 
     def test_custom_date(self, tmp_path):

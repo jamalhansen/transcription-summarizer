@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from local_first_common.obsidian import (
@@ -24,7 +24,7 @@ def get_note_path(
     vault_path: str, note_dir: str, note_date: date | None = None
 ) -> Path:
     """Return the path for a daily note file."""
-    d = note_date or date.today()
+    d = note_date or datetime.now().astimezone().date()
     return get_daily_note_path(Path(vault_path), d, subdir=note_dir)
 
 
@@ -48,7 +48,7 @@ def new_note_base(note_path: Path, template_path: str | None) -> str:
             try:
                 note_date = date.fromisoformat(note_path.stem[:10])
             except ValueError:
-                note_date = date.today()
+                note_date = datetime.now().astimezone().date()
             rendered = render_obsidian_template(
                 tpl.read_text(encoding="utf-8"), note_date
             )
@@ -56,7 +56,7 @@ def new_note_base(note_path: Path, template_path: str | None) -> str:
     try:
         note_date = date.fromisoformat(note_path.stem[:10])
     except ValueError:
-        note_date = date.today()
+        note_date = datetime.now().astimezone().date()
     return f"---\ndate: {note_date.isoformat()}\n---\n\n"
 
 

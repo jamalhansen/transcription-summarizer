@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
 """Voice Journal CLI — process garbled voice memo transcriptions into Obsidian daily notes."""
 
-from datetime import date
+from datetime import date, datetime
 from itertools import groupby
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
+from local_first_common.cli import (
+    dry_run_option,
+    no_llm_option,
+    resolve_dry_run,
+    resolve_provider,
+)
+from local_first_common.config import get_setting
+from local_first_common.providers import PROVIDERS
+from local_first_common.tracking import register_tool, timed_run
 
 from .config import (
     DEFAULT_NOTE_DIR,
@@ -14,24 +23,15 @@ from .config import (
     resolve_input_dir,
     resolve_vault_path,
 )
-from .extractor import ExtractionResult, extract
 from .core import (
-    ProviderSetupError,
     ExtractionError,
-    get_note_path,
+    ProviderSetupError,
     append_to_note,
-    new_note_base,
     file_date,
+    get_note_path,
+    new_note_base,
 )
-from local_first_common.config import get_setting
-from local_first_common.cli import (
-    dry_run_option,
-    no_llm_option,
-    resolve_dry_run,
-    resolve_provider,
-)
-from local_first_common.providers import PROVIDERS
-from local_first_common.tracking import register_tool, timed_run
+from .extractor import ExtractionResult, extract
 
 _TOOL = register_tool("transcription-summarizer")
 
@@ -83,7 +83,7 @@ def process_file(file_path: Path, provider, verbose: bool):
     except ExtractionError as e:
         typer.echo(f"Error processing {file_path.name}: {e}", err=True)
         return None
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level per-file boundary: report and skip, don't crash the whole batch
         typer.echo(f"Error processing {file_path.name}: {e}", err=True)
         return None
 
@@ -96,10 +96,10 @@ def process_file(file_path: Path, provider, verbose: bool):
 @app.command()
 def main(
     provider: Annotated[
-        Optional[str], typer.Option("--provider", "-p", help="LLM backend to use")
+        str | None, typer.Option("--provider", "-p", help="LLM backend to use")
     ] = None,
     model: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--model", "-m", help="Override the default model for the chosen provider"
         ),
@@ -107,7 +107,7 @@ def main(
     dry_run: Annotated[bool, dry_run_option()] = False,
     no_llm: Annotated[bool, no_llm_option()] = False,
     input_dir: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--input-dir",
             "-i",
@@ -115,13 +115,13 @@ def main(
         ),
     ] = None,
     file: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--file", "-f", help="Process a single file instead of the whole directory"
         ),
     ] = None,
     vault_path: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--vault-path", "-v", help="Path to the Obsidian vault root"),
     ] = None,
     note_dir: Annotated[
@@ -133,7 +133,7 @@ def main(
         ),
     ] = DEFAULT_NOTE_DIR,
     override_date: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--date", help="Override the date for the daily note (YYYY-MM-DD)"
         ),
@@ -197,7 +197,7 @@ def main(
     except ProviderSetupError as e:
         typer.echo(f"Error initializing provider '{provider}': {e}", err=True)
         raise typer.Exit(1)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI boundary: report cleanly and exit, don't show a raw traceback
         typer.echo(f"Error initializing provider '{provider}': {e}", err=True)
         raise typer.Exit(1)
 
@@ -206,7 +206,7 @@ def main(
         typer.echo("No .txt or .md files found to process.")
         raise typer.Exit(0)
 
-    fallback_date = note_date or date.today()
+    fallback_date = note_date or datetime.now().astimezone().date()
     results: list[tuple[Path, date, ExtractionResult]] = []
     skipped = 0
 

@@ -2,13 +2,14 @@
 
 from datetime import date
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
+
 from voice_journal import logic
 from voice_journal.extractor import ExtractionResult
-from voice_journal.logic import TranscriptionError, ProviderSetupError, ExtractionError
+from voice_journal.logic import ExtractionError, ProviderSetupError, TranscriptionError
 
 
 class TestTypedErrors:
@@ -73,7 +74,7 @@ def test_collect_files_directory(tmp_path):
 
 def test_file_date_from_name():
     """Extracts date from YYYY-MM-DD prefix."""
-    assert logic.file_date(Path("2026-03-21-memo.txt"), date.today()) == date(
+    assert logic.file_date(Path("2026-03-21-memo.txt"), date(2026, 6, 1)) == date(
         2026, 3, 21
     )
 
@@ -129,9 +130,8 @@ def test_collect_files_not_found():
 
 def test_main_invalid_provider():
     """Typer.Exit on unknown provider."""
-    with patch("voice_journal.cli.PROVIDERS", {}):
-        with pytest.raises(typer.Exit):
-            logic.main(provider="unknown")
+    with patch("voice_journal.cli.PROVIDERS", {}), pytest.raises(typer.Exit):
+        logic.main(provider="unknown")
 
 
 def test_main_invalid_date():
