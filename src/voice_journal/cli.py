@@ -24,6 +24,7 @@ from .config import (
     resolve_vault_path,
 )
 from .core import (
+    AudioTranscribeError,
     ExtractionError,
     ProviderSetupError,
     append_to_note,
@@ -32,6 +33,7 @@ from .core import (
     new_note_base,
 )
 from .extractor import ExtractionResult, extract
+from .transcribe import AUDIO_EXTENSIONS, DEFAULT_WHISPER_MODEL, transcribe_audio
 
 _TOOL = register_tool("transcription-summarizer")
 
@@ -52,14 +54,24 @@ def collect_files(file: str | None, input_dir: str | None) -> list[Path]:
         raise typer.Exit(1)
 
     files = sorted(
-        f for f in resolved_dir.iterdir() if f.suffix in (".txt", ".md") and f.is_file()
+        f
+        for f in resolved_dir.iterdir()
+        if f.suffix in (".txt", ".md", *AUDIO_EXTENSIONS) and f.is_file()
     )
     return files
 
 
-def process_file(file_path: Path, provider, verbose: bool):
-    """Extract content from a transcription file. Returns ExtractionResult or None."""
-    raw = file_path.read_text(encoding="utf-8")
+def process_file(file_path: Path, provider, verbose: bool, whisper_model: str):
+    """Extract content from a transcription (or audio) file. Returns ExtractionResult or None."""
+    if file_path.suffix in AUDIO_EXTENSIONS:
+        typer.echo(f"Transcribing: {file_path.name}")
+        try:
+            raw = transcribe_audio(file_path, model=whisper_model)
+        except AudioTranscribeError as e:
+            typer.echo(f"Error transcribing {file_path.name}: {e}", err=True)
+            return None
+    else:
+        raw = file_path.read_text(encoding="utf-8")
 
     if not raw.strip():
         typer.echo(f"Skipping empty file: {file_path.name}")
@@ -91,6 +103,21 @@ def process_file(file_path: Path, provider, verbose: bool):
         typer.echo(f"--- Reconstructed ---\n{result.reconstructed}\n")
 
     return result
+
+
+def archive_file(f: Path, result: ExtractionResult) -> Path:
+    """Move a processed input into its own processed/ subfolder.
+
+    For audio input, also writes the transcript alongside it -- for a text/md
+    input the transcript *was* the file, so there's nothing extra to save.
+    """
+    processed_dir = f.parent / "processed"
+    processed_dir.mkdir(exist_ok=True)
+    dest = processed_dir / f.name
+    f.rename(dest)
+    if f.suffix in AUDIO_EXTENSIONS and result.reconstructed:
+        (processed_dir / f"{f.stem}.txt").write_text(result.reconstructed, encoding="utf-8")
+    return dest
 
 
 @app.command()
@@ -152,6 +179,13 @@ def main(
             help="Combine all transcriptions into a single extraction for today's note",
         ),
     ] = False,
+    whisper_model: Annotated[
+        str | None,
+        typer.Option(
+            "--whisper-model",
+            help="Local Whisper model (mlx-whisper) used to transcribe audio input files",
+        ),
+    ] = None,
 ) -> None:
     _TOOL_NAME = "transcription-summarizer"
     provider = get_setting(_TOOL_NAME, "provider", cli_val=provider, default="local")
@@ -160,6 +194,9 @@ def main(
         "model",
         cli_val=model,
         default="llama3.2:3b" if provider in ("local", "ollama") else None,
+    )
+    whisper_model = get_setting(
+        _TOOL_NAME, "whisper_model", cli_val=whisper_model, default=DEFAULT_WHISPER_MODEL
     )
     if not all_files:
         all_files = bool(get_setting(_TOOL_NAME, "all", default=False))
@@ -203,7 +240,7 @@ def main(
 
     files = collect_files(file, input_dir)
     if not files:
-        typer.echo("No .txt or .md files found to process.")
+        typer.echo("No .txt, .md, or audio files found to process.")
         raise typer.Exit(0)
 
     fallback_date = note_date or datetime.now().astimezone().date()
@@ -211,7 +248,7 @@ def main(
     skipped = 0
 
     for f in files:
-        result = process_file(f, llm_provider, verbose)
+        result = process_file(f, llm_provider, verbose, whisper_model)
         if result is not None:
             results.append((f, file_date(f, fallback_date), result))
         else:
@@ -255,11 +292,8 @@ def main(
                 n_path = get_note_path(str(resolved_vault), note_dir, fallback_date)
                 append_to_note(n_path, md, template_path=DEFAULT_TEMPLATE_PATH)
                 typer.echo(f"  Written to: {n_path}")
-            for f, _, _ in results:
-                processed_dir = f.parent / "processed"
-                processed_dir.mkdir(exist_ok=True)
-                dest = processed_dir / f.name
-                f.rename(dest)
+            for f, _, result in results:
+                dest = archive_file(f, result)
                 typer.echo(f"  Moved to:   {dest}")
         else:
             for d, group in groupby(results, key=lambda x: x[1]):
@@ -275,11 +309,8 @@ def main(
                     append_to_note(n_path, md, template_path=DEFAULT_TEMPLATE_PATH)
                     typer.echo(f"  Written to: {n_path}")
 
-                for f, _, _ in group:
-                    processed_dir = f.parent / "processed"
-                    processed_dir.mkdir(exist_ok=True)
-                    dest = processed_dir / f.name
-                    f.rename(dest)
+                for f, _, result in group:
+                    dest = archive_file(f, result)
                     typer.echo(f"  Moved to:   {dest}")
 
     typer.echo(f"\nDone. Processed: {len(results)}, Skipped: {skipped}")

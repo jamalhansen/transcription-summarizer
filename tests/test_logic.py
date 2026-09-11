@@ -72,6 +72,17 @@ def test_collect_files_directory(tmp_path):
         assert [f.name for f in res] == ["a.txt", "b.txt"]
 
 
+def test_collect_files_includes_audio(tmp_path):
+    """Audio files (.m4a/.wav/.mp3) are picked up alongside .txt/.md."""
+    (tmp_path / "memo.m4a").write_bytes(b"fake")
+    (tmp_path / "note.txt").write_text("a")
+    (tmp_path / "cover.jpg").write_text("not audio")
+
+    with patch("voice_journal.cli.resolve_input_dir", return_value=tmp_path):
+        res = logic.collect_files(None, str(tmp_path))
+        assert {f.name for f in res} == {"memo.m4a", "note.txt"}
+
+
 def test_file_date_from_name():
     """Extracts date from YYYY-MM-DD prefix."""
     assert logic.file_date(Path("2026-03-21-memo.txt"), date(2026, 6, 1)) == date(
@@ -89,7 +100,7 @@ def test_process_file_empty(tmp_path):
     """Skips empty files."""
     f = tmp_path / "empty.txt"
     f.write_text("  ")
-    res = logic.process_file(f, MagicMock(), False)
+    res = logic.process_file(f, MagicMock(), False, "mlx-community/whisper-large-v3-turbo")
     assert res is None
 
 
@@ -100,9 +111,65 @@ def test_process_file_success(mock_extract, tmp_path):
     f.write_text("raw text")
     mock_extract.return_value = ExtractionResult(reconstructed="fixed")
 
-    res = logic.process_file(f, MagicMock(), False)
+    res = logic.process_file(f, MagicMock(), False, "mlx-community/whisper-large-v3-turbo")
     assert res.reconstructed == "fixed"
     mock_extract.assert_called_once()
+
+
+@patch("voice_journal.cli.extract")
+@patch("voice_journal.cli.transcribe_audio")
+def test_process_file_audio_transcribes_then_extracts(mock_transcribe, mock_extract, tmp_path):
+    """Audio input is transcribed first, then the transcript goes through extract() same as text."""
+    f = tmp_path / "memo.m4a"
+    f.write_bytes(b"fake audio")
+    mock_transcribe.return_value = "what whisper heard"
+    mock_extract.return_value = ExtractionResult(reconstructed="fixed")
+
+    res = logic.process_file(f, MagicMock(), False, "mlx-community/whisper-large-v3-turbo")
+
+    mock_transcribe.assert_called_once_with(f, model="mlx-community/whisper-large-v3-turbo")
+    mock_extract.assert_called_once()
+    assert mock_extract.call_args[0][1] == "what whisper heard"
+    assert res.reconstructed == "fixed"
+
+
+@patch("voice_journal.cli.transcribe_audio")
+def test_process_file_audio_transcribe_failure_skips(mock_transcribe, tmp_path):
+    """A Whisper failure is reported and skipped, not raised -- same per-file boundary as extraction errors."""
+    f = tmp_path / "memo.m4a"
+    f.write_bytes(b"fake audio")
+    mock_transcribe.side_effect = logic.AudioTranscribeError("model unavailable")
+
+    res = logic.process_file(f, MagicMock(), False, "mlx-community/whisper-large-v3-turbo")
+    assert res is None
+
+
+def test_archive_file_moves_text_input_without_sidecar(tmp_path):
+    """A text input's transcript *was* the file -- no extra sidecar to write."""
+    f = tmp_path / "memo.txt"
+    f.write_text("raw")
+    result = ExtractionResult(reconstructed="raw")
+
+    dest = logic.archive_file(f, result)
+
+    assert dest == tmp_path / "processed" / "memo.txt"
+    assert dest.exists()
+    assert not (tmp_path / "processed" / "memo.txt.txt").exists()
+
+
+def test_archive_file_writes_transcript_sidecar_for_audio(tmp_path):
+    """Audio input also gets its reconstructed transcript saved alongside the archived audio."""
+    f = tmp_path / "memo.m4a"
+    f.write_bytes(b"fake audio")
+    result = ExtractionResult(reconstructed="what whisper heard, reconstructed")
+
+    dest = logic.archive_file(f, result)
+
+    assert dest == tmp_path / "processed" / "memo.m4a"
+    assert dest.exists()
+    sidecar = tmp_path / "processed" / "memo.txt"
+    assert sidecar.exists()
+    assert sidecar.read_text(encoding="utf-8") == "what whisper heard, reconstructed"
 
 
 @patch("voice_journal.cli.resolve_vault_path")

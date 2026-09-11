@@ -5,6 +5,7 @@ description = "Process voice memo transcriptions into structured Obsidian daily 
 requires-python = ">=3.12"
 dependencies = [
     "local-first-common[anthropic,groq,deepseek]",
+    "mlx-whisper>=0.4.0",
     "requests>=2.32.5",
     "typer>=0.24.1",
 ]

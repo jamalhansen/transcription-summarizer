@@ -20,6 +20,10 @@ class ExtractionError(TranscriptionError):
     """Raised when the LLM extraction call fails."""
 
 
+class AudioTranscribeError(TranscriptionError):
+    """Raised when Whisper audio transcription fails."""
+
+
 def get_note_path(
     vault_path: str, note_dir: str, note_date: date | None = None
 ) -> Path:
