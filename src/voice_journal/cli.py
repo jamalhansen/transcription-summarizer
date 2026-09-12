@@ -33,6 +33,7 @@ from .core import (
     get_note_path,
     memo_link_line,
     memo_note_path,
+    memo_title_slug,
     parse_memo_time,
     render_memo_note,
     write_memo_note,
@@ -125,6 +126,12 @@ def archive_file(f: Path, entry: str) -> Path:
     if f.suffix in AUDIO_EXTENSIONS and entry:
         (processed_dir / f"{f.stem}.txt").write_text(entry, encoding="utf-8")
     return dest
+
+
+def titled_stem(stem: str, entry: str) -> str:
+    """Append a short content slug to a memo's filename stem, if one can be derived."""
+    slug = memo_title_slug(entry)
+    return f"{stem}-{slug}" if slug else stem
 
 
 def combine_entries(entries: list[str]) -> str:
@@ -280,7 +287,7 @@ def main(
         if all_files:
             entry = combine_entries([r for _, _, r in results])
             if entry:
-                stem = f"{fallback_date.isoformat()}-combined"
+                stem = titled_stem(f"{fallback_date.isoformat()}-combined", entry)
                 source_names = ", ".join(f.name for f, _, _ in results)
                 content = render_memo_note(fallback_date, "", source_names, entry)
                 typer.echo(f"\n--- Preview memo note: {memo_dir}/{stem}.md ---\n")
@@ -294,16 +301,17 @@ def main(
                 links = []
                 for f, _, entry in group:
                     memo_time = parse_memo_time(f.stem)
+                    stem = titled_stem(f.stem, entry)
                     content = render_memo_note(d, memo_time, f.name, entry)
-                    typer.echo(f"\n--- Preview memo note: {memo_dir}/{f.stem}.md ---\n")
+                    typer.echo(f"\n--- Preview memo note: {memo_dir}/{stem}.md ---\n")
                     typer.echo(content)
-                    links.append(memo_link_line(memo_dir, f.stem, memo_time))
+                    links.append(memo_link_line(memo_dir, stem, memo_time))
                 typer.echo(f"\n--- Would link in daily note ({d}) ---\n" + "\n".join(links))
     else:
         if all_files:
             entry = combine_entries([r for _, _, r in results])
             if entry:
-                stem = f"{fallback_date.isoformat()}-combined"
+                stem = titled_stem(f"{fallback_date.isoformat()}-combined", entry)
                 source_names = ", ".join(f.name for f, _, _ in results)
                 note_path = memo_note_path(str(resolved_vault), memo_dir, stem)
                 write_memo_note(note_path, render_memo_note(fallback_date, "", source_names, entry))
@@ -321,10 +329,11 @@ def main(
                 links = []
                 for f, _, entry in group:
                     memo_time = parse_memo_time(f.stem)
-                    note_path = memo_note_path(str(resolved_vault), memo_dir, f.stem)
+                    stem = titled_stem(f.stem, entry)
+                    note_path = memo_note_path(str(resolved_vault), memo_dir, stem)
                     write_memo_note(note_path, render_memo_note(d, memo_time, f.name, entry))
                     typer.echo(f"  Memo note:  {note_path}")
-                    links.append(memo_link_line(memo_dir, f.stem, memo_time))
+                    links.append(memo_link_line(memo_dir, stem, memo_time))
 
                 n_path = get_note_path(str(resolved_vault), note_dir, d)
                 append_to_note(n_path, "\n".join(links), template_path=DEFAULT_TEMPLATE_PATH)

@@ -11,6 +11,7 @@ from voice_journal.logic import (
     get_note_path,
     memo_link_line,
     memo_note_path,
+    memo_title_slug,
     parse_memo_time,
     render_memo_note,
     write_memo_note,
@@ -166,3 +167,20 @@ class TestMemoLinkLine:
     def test_omits_label_when_no_time(self):
         line = memo_link_line("Voice Memos", "2026-03-20-memo", "")
         assert line == "- [[Voice Memos/2026-03-20-memo]]"
+
+
+class TestMemoTitleSlug:
+    def test_uses_heading_when_present(self):
+        entry = "## Artist Agent Vault\n\nI've been thinking about..."
+        assert memo_title_slug(entry) == "artist-agent-vault"
+
+    def test_falls_back_to_first_words_without_heading(self):
+        entry = "I was also thinking about the voice memos and maybe it makes sense."
+        assert memo_title_slug(entry) == "i-was-also-thinking-about-the"
+
+    def test_empty_entry_returns_empty_string(self):
+        assert memo_title_slug("") == ""
+
+    def test_truncates_long_slug(self):
+        entry = "## " + " ".join(["word"] * 20)
+        assert len(memo_title_slug(entry)) <= 50

@@ -92,6 +92,29 @@ def memo_note_path(vault_path: str, memo_dir: str, stem: str) -> Path:
     return Path(vault_path).expanduser() / memo_dir / f"{stem}.md"
 
 
+_SLUG_NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
+
+
+def memo_title_slug(entry: str, max_words: int = 6, max_chars: int = 50) -> str:
+    """Derive a short filename slug from the entry's own content.
+
+    Uses the entry's "## " heading when present -- the extraction prompt only adds
+    one when an entry genuinely covers more than one topic, which makes it a
+    reasonable label the rest of the time too -- and falls back to the first few
+    words of the entry otherwise. Returns "" for an empty entry rather than guess.
+    """
+    entry = entry.strip()
+    if not entry:
+        return ""
+
+    first_line = entry.splitlines()[0]
+    heading_match = re.match(r"^#{1,6}\s+(.+)$", first_line)
+    source = heading_match.group(1) if heading_match else " ".join(entry.split()[:max_words])
+
+    slug = _SLUG_NON_ALNUM_RE.sub("-", source.lower()).strip("-")
+    return slug[:max_chars].rstrip("-")
+
+
 def render_memo_note(memo_date: date, memo_time: str, source_name: str, entry: str) -> str:
     """Render a single voice memo as its own note: frontmatter, then the finished entry.
 
