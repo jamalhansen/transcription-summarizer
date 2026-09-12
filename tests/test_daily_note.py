@@ -6,7 +6,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from local_first_common.obsidian import render_obsidian_template
 
-from voice_journal.logic import append_to_note, get_note_path
+from voice_journal.logic import (
+    append_to_note,
+    get_note_path,
+    memo_link_line,
+    memo_note_path,
+    parse_memo_time,
+    render_memo_note,
+    write_memo_note,
+)
 
 
 class TestGetNotePath:
@@ -107,3 +115,54 @@ class TestRenderObsidianTemplate:
         assert '2026-03-02' in result
         assert '2026-03-04' in result
         assert '2026-W10' in result
+
+
+class TestParseMemoTime:
+    def test_extracts_time_from_recording_stem(self):
+        assert parse_memo_time("2026-09-11-20-01-43") == "20:01"
+
+    def test_no_time_in_hand_named_stem(self):
+        assert parse_memo_time("2026-03-20-memo") == ""
+
+    def test_no_time_when_date_missing_entirely(self):
+        assert parse_memo_time("memo") == ""
+
+
+class TestMemoNotePath:
+    def test_builds_path_under_memo_dir(self, tmp_path):
+        path = memo_note_path(str(tmp_path), "Voice Memos", "2026-09-11-20-01-43")
+        assert path == tmp_path / "Voice Memos" / "2026-09-11-20-01-43.md"
+
+
+class TestRenderMemoNote:
+    def test_includes_date_time_source_and_entry(self):
+        content = render_memo_note(
+            date(2026, 9, 11), "20:01", "2026-09-11-20-01-43.m4a", "Finished journal entry."
+        )
+        assert "date: 2026-09-11" in content
+        assert 'time: "20:01"' in content
+        assert "type: voice-memo" in content
+        assert "source_audio: 2026-09-11-20-01-43.m4a" in content
+        assert "Finished journal entry." in content
+
+    def test_omits_time_field_when_absent(self):
+        content = render_memo_note(date(2026, 9, 11), "", "memo.txt", "Entry text")
+        assert "time:" not in content
+
+
+class TestWriteMemoNote:
+    def test_writes_file_and_creates_parent_dir(self, tmp_path):
+        note_path = tmp_path / "Voice Memos" / "2026-09-11-20-01-43.md"
+        write_memo_note(note_path, "---\ndate: 2026-09-11\n---\n\nEntry text\n")
+        assert note_path.exists()
+        assert "Entry text" in note_path.read_text()
+
+
+class TestMemoLinkLine:
+    def test_includes_time_label(self):
+        line = memo_link_line("Voice Memos", "2026-09-11-20-01-43", "20:01")
+        assert line == "- [[Voice Memos/2026-09-11-20-01-43]] (20:01)"
+
+    def test_omits_label_when_no_time(self):
+        line = memo_link_line("Voice Memos", "2026-03-20-memo", "")
+        assert line == "- [[Voice Memos/2026-03-20-memo]]"

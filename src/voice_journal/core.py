@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime
 from pathlib import Path
 
@@ -70,3 +71,47 @@ def file_date(file_path: Path, fallback: date) -> date:
         return date.fromisoformat(file_path.stem[:10])
     except ValueError:
         return fallback
+
+
+_STEM_TIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-(\d{2})-(\d{2})-(\d{2})")
+
+
+def parse_memo_time(stem: str) -> str:
+    """Extract "HH:MM" from a recording filename stem like "2026-09-11-20-01-43".
+
+    Returns "" if the stem doesn't carry a time component (e.g. a hand-named
+    text file), since a memo note's frontmatter should never claim a time it
+    doesn't actually have.
+    """
+    m = _STEM_TIME_RE.match(stem)
+    return f"{m.group(1)}:{m.group(2)}" if m else ""
+
+
+def memo_note_path(vault_path: str, memo_dir: str, stem: str) -> Path:
+    """Return the path for an individual voice-memo note, named after its source file."""
+    return Path(vault_path).expanduser() / memo_dir / f"{stem}.md"
+
+
+def render_memo_note(memo_date: date, memo_time: str, source_name: str, entry: str) -> str:
+    """Render a single voice memo as its own note: frontmatter, then the finished entry.
+
+    One memo, one note -- each recording stays composable and linkable on its own
+    instead of having its content folded directly into the daily note.
+    """
+    lines = ["---", f"date: {memo_date.isoformat()}"]
+    if memo_time:
+        lines.append(f'time: "{memo_time}"')
+    lines += ["type: voice-memo", f"source_audio: {source_name}", "---", "", entry.strip(), ""]
+    return "\n".join(lines)
+
+
+def write_memo_note(note_path: Path, content: str) -> None:
+    """Write a rendered memo note to disk, creating its folder if needed."""
+    note_path.parent.mkdir(parents=True, exist_ok=True)
+    note_path.write_text(content, encoding="utf-8")
+
+
+def memo_link_line(memo_dir: str, stem: str, memo_time: str) -> str:
+    """Return the daily-note bullet line linking to a memo note."""
+    label = f" ({memo_time})" if memo_time else ""
+    return f"- [[{memo_dir}/{stem}]]{label}"

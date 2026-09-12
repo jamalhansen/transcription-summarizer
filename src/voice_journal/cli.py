@@ -18,6 +18,7 @@ from local_first_common.providers import PROVIDERS
 from local_first_common.tracking import register_tool, timed_run
 
 from .config import (
+    DEFAULT_MEMO_DIR,
     DEFAULT_NOTE_DIR,
     DEFAULT_TEMPLATE_PATH,
     resolve_input_dir,
@@ -30,7 +31,11 @@ from .core import (
     append_to_note,
     file_date,
     get_note_path,
-    new_note_base,
+    memo_link_line,
+    memo_note_path,
+    parse_memo_time,
+    render_memo_note,
+    write_memo_note,
 )
 from .extractor import extract
 from .transcribe import AUDIO_EXTENSIONS, DEFAULT_WHISPER_MODEL, transcribe_audio
@@ -168,6 +173,13 @@ def main(
             help=f"Subdirectory within vault for daily notes (default: {DEFAULT_NOTE_DIR})",
         ),
     ] = DEFAULT_NOTE_DIR,
+    memo_dir: Annotated[
+        str,
+        typer.Option(
+            "--memo-dir",
+            help=f"Subdirectory within vault for individual voice-memo notes (default: {DEFAULT_MEMO_DIR})",
+        ),
+    ] = DEFAULT_MEMO_DIR,
     override_date: Annotated[
         str | None,
         typer.Option(
@@ -207,6 +219,7 @@ def main(
     whisper_model = get_setting(
         _TOOL_NAME, "whisper_model", cli_val=whisper_model, default=DEFAULT_WHISPER_MODEL
     )
+    memo_dir = get_setting(_TOOL_NAME, "memo_dir", cli_val=memo_dir, default=DEFAULT_MEMO_DIR)
     if not all_files:
         all_files = bool(get_setting(_TOOL_NAME, "all", default=False))
 
@@ -264,44 +277,58 @@ def main(
             skipped += 1
 
     if dry_run:
-        dry_groups: list[tuple[date, list]] = (
-            [(fallback_date, results)]
-            if all_files
-            else [(d, list(g)) for d, g in groupby(results, key=lambda x: x[1])]
-        )
-        for d, group in dry_groups:
-            n_path = get_note_path(str(resolved_vault), note_dir, d)
-            md = combine_entries([entry for _, _, entry in group])
-            if not md:
-                continue
-            if n_path.exists():
-                existing = n_path.read_text(encoding="utf-8")
-                preview = (
-                    existing.rstrip() + "\n\n---\n\n## Voice Journal\n\n" + md + "\n"
+        if all_files:
+            entry = combine_entries([r for _, _, r in results])
+            if entry:
+                stem = f"{fallback_date.isoformat()}-combined"
+                source_names = ", ".join(f.name for f, _, _ in results)
+                content = render_memo_note(fallback_date, "", source_names, entry)
+                typer.echo(f"\n--- Preview memo note: {memo_dir}/{stem}.md ---\n")
+                typer.echo(content)
+                typer.echo(
+                    f"\n--- Would link in daily note ({fallback_date}) ---\n"
+                    + memo_link_line(memo_dir, stem, "")
                 )
-            else:
-                base = new_note_base(n_path, DEFAULT_TEMPLATE_PATH)
-                preview = base + "## Voice Journal\n\n" + md + "\n"
-            typer.echo(f"\n--- Preview: {n_path.name} ---\n")
-            typer.echo(preview)
+        else:
+            for d, group in groupby(results, key=lambda x: x[1]):
+                links = []
+                for f, _, entry in group:
+                    memo_time = parse_memo_time(f.stem)
+                    content = render_memo_note(d, memo_time, f.name, entry)
+                    typer.echo(f"\n--- Preview memo note: {memo_dir}/{f.stem}.md ---\n")
+                    typer.echo(content)
+                    links.append(memo_link_line(memo_dir, f.stem, memo_time))
+                typer.echo(f"\n--- Would link in daily note ({d}) ---\n" + "\n".join(links))
     else:
         if all_files:
-            md = combine_entries([entry for _, _, entry in results])
-            if md:
+            entry = combine_entries([r for _, _, r in results])
+            if entry:
+                stem = f"{fallback_date.isoformat()}-combined"
+                source_names = ", ".join(f.name for f, _, _ in results)
+                note_path = memo_note_path(str(resolved_vault), memo_dir, stem)
+                write_memo_note(note_path, render_memo_note(fallback_date, "", source_names, entry))
+                typer.echo(f"  Memo note:  {note_path}")
+
                 n_path = get_note_path(str(resolved_vault), note_dir, fallback_date)
-                append_to_note(n_path, md, template_path=DEFAULT_TEMPLATE_PATH)
-                typer.echo(f"  Written to: {n_path}")
+                append_to_note(n_path, memo_link_line(memo_dir, stem, ""), template_path=DEFAULT_TEMPLATE_PATH)
+                typer.echo(f"  Linked in:  {n_path}")
             for f, _, result in results:
                 dest = archive_file(f, result)
                 typer.echo(f"  Moved to:   {dest}")
         else:
             for d, group in groupby(results, key=lambda x: x[1]):
                 group = list(group)
-                md = combine_entries([entry for _, _, entry in group])
-                if md:
-                    n_path = get_note_path(str(resolved_vault), note_dir, d)
-                    append_to_note(n_path, md, template_path=DEFAULT_TEMPLATE_PATH)
-                    typer.echo(f"  Written to: {n_path}")
+                links = []
+                for f, _, entry in group:
+                    memo_time = parse_memo_time(f.stem)
+                    note_path = memo_note_path(str(resolved_vault), memo_dir, f.stem)
+                    write_memo_note(note_path, render_memo_note(d, memo_time, f.name, entry))
+                    typer.echo(f"  Memo note:  {note_path}")
+                    links.append(memo_link_line(memo_dir, f.stem, memo_time))
+
+                n_path = get_note_path(str(resolved_vault), note_dir, d)
+                append_to_note(n_path, "\n".join(links), template_path=DEFAULT_TEMPLATE_PATH)
+                typer.echo(f"  Linked in:  {n_path}")
 
                 for f, _, result in group:
                     dest = archive_file(f, result)
