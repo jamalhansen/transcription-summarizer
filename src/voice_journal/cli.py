@@ -259,7 +259,7 @@ def main(
 
     # Build provider
     try:
-        llm_provider = resolve_provider(PROVIDERS, provider, model, no_llm=no_llm)
+        llm_provider = resolve_provider(PROVIDERS, provider, model, no_llm=no_llm, tool_name="transcription-summarizer")
     except ProviderSetupError as e:
         typer.echo(f"Error initializing provider '{provider}': {e}", err=True)
         raise typer.Exit(1)
