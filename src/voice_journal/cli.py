@@ -15,7 +15,7 @@ from local_first_common.cli import (
 )
 from local_first_common.config import get_setting
 from local_first_common.providers import PROVIDERS
-from local_first_common.tracking import register_tool, timed_run
+from local_first_common.tracking import register_tool
 
 from .config import (
     DEFAULT_MEMO_DIR,
@@ -89,16 +89,10 @@ def process_file(file_path: Path, provider, verbose: bool, whisper_model: str) -
     if verbose:
         typer.echo(f"\n--- Raw Transcription ---\n{raw.strip()}\n")
 
+    provider.source_location = str(file_path)
+    provider.item_count = 1
     try:
-        with timed_run(
-            "transcription-summarizer",
-            getattr(provider, "model", None),
-            source_location=str(file_path),
-        ) as run:
-            result = extract(provider, raw)
-            run.item_count = 1
-            run.input_tokens = getattr(provider, "input_tokens", None) or None
-            run.output_tokens = getattr(provider, "output_tokens", None) or None
+        result = extract(provider, raw)
     except ExtractionError as e:
         typer.echo(f"Error processing {file_path.name}: {e}", err=True)
         return None
