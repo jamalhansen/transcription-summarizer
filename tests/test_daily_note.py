@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from local_first_common.obsidian import render_obsidian_template
 
-from voice_journal.logic import (
+from voice_journal.core import (
     append_to_note,
     get_note_path,
     memo_link_line,
