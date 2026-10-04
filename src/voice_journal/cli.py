@@ -243,7 +243,7 @@ def main(
                 f"Error: invalid date format '{override_date}'. Use YYYY-MM-DD.",
                 err=True,
             )
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
     # Validate vault path unless dry-run
     resolved_vault = resolve_vault_path(vault_path)
@@ -256,10 +256,10 @@ def main(
         llm_provider = resolve_provider(PROVIDERS, provider, model, no_llm=no_llm, tool_name="transcription-summarizer")
     except ProviderSetupError as e:
         typer.echo(f"Error initializing provider '{provider}': {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except Exception as e:  # noqa: BLE001 - top-level CLI boundary: report cleanly and exit, don't show a raw traceback
         typer.echo(f"Error initializing provider '{provider}': {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     files = collect_files(file, input_dir)
     if not files:
