@@ -24,9 +24,7 @@ class TestTranscribeAudio:
             result = transcribe_audio(f, model="mlx-community/whisper-tiny")
 
         assert result == "hello from the memo"
-        mock_mlx.transcribe.assert_called_once_with(
-            str(f), path_or_hf_repo="mlx-community/whisper-tiny"
-        )
+        mock_mlx.transcribe.assert_called_once_with(str(f), path_or_hf_repo="mlx-community/whisper-tiny")
 
     def test_empty_text_field_returns_empty_string(self, tmp_path):
         f = tmp_path / "memo.m4a"

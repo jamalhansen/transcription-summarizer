@@ -27,9 +27,7 @@ class TestTypedErrors:
 
 def test_get_note_path():
     """Returns correct daily note path."""
-    with patch(
-        "voice_journal.core.get_daily_note_path", return_value=Path("/v/2026-03-20.md")
-    ) as mock_get:
+    with patch("voice_journal.core.get_daily_note_path", return_value=Path("/v/2026-03-20.md")) as mock_get:
         p = core.get_note_path("/v", "d", date(2026, 3, 20))
         assert p == Path("/v/2026-03-20.md")
         mock_get.assert_called_once_with(Path("/v"), date(2026, 3, 20), subdir="d")
@@ -84,9 +82,7 @@ def test_collect_files_includes_audio(tmp_path):
 
 def test_file_date_from_name():
     """Extracts date from YYYY-MM-DD prefix."""
-    assert core.file_date(Path("2026-03-21-memo.txt"), date(2026, 6, 1)) == date(
-        2026, 3, 21
-    )
+    assert core.file_date(Path("2026-03-21-memo.txt"), date(2026, 6, 1)) == date(2026, 3, 21)
 
 
 def test_file_date_fallback():
@@ -238,9 +234,7 @@ def test_main_write_loop(mock_append, mock_proc, mock_collect, mock_vault, tmp_p
         patch("voice_journal.cli.PROVIDERS", {"local": MagicMock()}),
         patch.object(Path, "rename") as mock_rename,
     ):
-        cli.main(
-            provider="local", dry_run=False, no_llm=False, vault_path=str(tmp_path)
-        )
+        cli.main(provider="local", dry_run=False, no_llm=False, vault_path=str(tmp_path))
 
     mock_append.assert_called_once()
     mock_rename.assert_called_once()

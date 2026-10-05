@@ -59,11 +59,7 @@ def collect_files(file: str | None, input_dir: str | None) -> list[Path]:
         typer.echo(f"Error: input directory not found: {resolved_dir}", err=True)
         raise typer.Exit(1)
 
-    files = sorted(
-        f
-        for f in resolved_dir.iterdir()
-        if f.suffix in (".txt", ".md", *AUDIO_EXTENSIONS) and f.is_file()
-    )
+    files = sorted(f for f in resolved_dir.iterdir() if f.suffix in (".txt", ".md", *AUDIO_EXTENSIONS) and f.is_file())
     return files
 
 
@@ -137,14 +133,10 @@ def combine_entries(entries: list[str]) -> str:
 
 @app.command()
 def main(
-    provider: Annotated[
-        str | None, typer.Option("--provider", "-p", help="LLM backend to use")
-    ] = None,
+    provider: Annotated[str | None, typer.Option("--provider", "-p", help="LLM backend to use")] = None,
     model: Annotated[
         str | None,
-        typer.Option(
-            "--model", "-m", help="Override the default model for the chosen provider"
-        ),
+        typer.Option("--model", "-m", help="Override the default model for the chosen provider"),
     ] = None,
     dry_run: Annotated[bool, dry_run_option()] = False,
     no_llm: Annotated[bool, no_llm_option()] = False,
@@ -158,9 +150,7 @@ def main(
     ] = None,
     file: Annotated[
         str | None,
-        typer.Option(
-            "--file", "-f", help="Process a single file instead of the whole directory"
-        ),
+        typer.Option("--file", "-f", help="Process a single file instead of the whole directory"),
     ] = None,
     vault_path: Annotated[
         str | None,
@@ -183,9 +173,7 @@ def main(
     ] = DEFAULT_MEMO_DIR,
     override_date: Annotated[
         str | None,
-        typer.Option(
-            "--date", help="Override the date for the daily note (YYYY-MM-DD)"
-        ),
+        typer.Option("--date", help="Override the date for the daily note (YYYY-MM-DD)"),
     ] = None,
     verbose: Annotated[
         bool,
@@ -217,9 +205,7 @@ def main(
         cli_val=model,
         default="llama3.2:3b" if provider in ("local", "ollama") else None,
     )
-    whisper_model = get_setting(
-        _TOOL_NAME, "whisper_model", cli_val=whisper_model, default=DEFAULT_WHISPER_MODEL
-    )
+    whisper_model = get_setting(_TOOL_NAME, "whisper_model", cli_val=whisper_model, default=DEFAULT_WHISPER_MODEL)
     memo_dir = get_setting(_TOOL_NAME, "memo_dir", cli_val=memo_dir, default=DEFAULT_MEMO_DIR)
     if not all_files:
         all_files = bool(get_setting(_TOOL_NAME, "all", default=False))
@@ -287,8 +273,7 @@ def main(
                 typer.echo(f"\n--- Preview memo note: {memo_dir}/{stem}.md ---\n")
                 typer.echo(content)
                 typer.echo(
-                    f"\n--- Would link in daily note ({fallback_date}) ---\n"
-                    + memo_link_line(memo_dir, stem, "")
+                    f"\n--- Would link in daily note ({fallback_date}) ---\n" + memo_link_line(memo_dir, stem, "")
                 )
         else:
             for d, group in groupby(results, key=lambda x: x[1]):

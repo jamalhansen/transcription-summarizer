@@ -5,6 +5,7 @@ Replaces the previous design of relying on Apple's on-device dictation to produc
 a text transcript upstream, which had no context for names, jargon, or tools and
 routinely mangled them.
 """
+
 from pathlib import Path
 
 from .core import AudioTranscribeError

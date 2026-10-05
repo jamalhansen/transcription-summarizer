@@ -26,9 +26,7 @@ class TestExtract:
         # wrong with the rewrite -- fall back to the transcript rather than
         # silently producing an empty journal entry.
         provider = MockProvider(response="")
-        assert extract(provider, "a real transcript with actual content") == (
-            "a real transcript with actual content"
-        )
+        assert extract(provider, "a real transcript with actual content") == ("a real transcript with actual content")
 
 
 class TestThinInputGuard:

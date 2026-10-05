@@ -75,7 +75,7 @@ class TestAppendToNote:
 
     def test_uses_template_for_new_file(self, tmp_path):
         tpl = tmp_path / "Daily Note.md"
-        tpl.write_text("---\nday: \"{{date:YYYY-MM-DD}}\"\n---\n\n## Morning Pages\n\n")
+        tpl.write_text('---\nday: "{{date:YYYY-MM-DD}}"\n---\n\n## Morning Pages\n\n')
         note = tmp_path / "notes" / "2026-03-03.md"
         append_to_note(note, self.CONTENT, template_path=str(tpl))
         text = note.read_text()
@@ -94,28 +94,28 @@ class TestRenderObsidianTemplate:
     NOTE_DATE = date(2026, 3, 3)
 
     def test_date_format(self):
-        result = render_obsidian_template('{{date:YYYY-MM-DD}}', self.NOTE_DATE)
+        result = render_obsidian_template("{{date:YYYY-MM-DD}}", self.NOTE_DATE)
         assert result == "2026-03-03"
 
     def test_week_format(self):
-        result = render_obsidian_template('{{date:YYYY-[W]W}}', self.NOTE_DATE)
+        result = render_obsidian_template("{{date:YYYY-[W]W}}", self.NOTE_DATE)
         assert result == "2026-W10"
 
     def test_yesterday(self):
-        result = render_obsidian_template('{{yesterday}}', self.NOTE_DATE)
+        result = render_obsidian_template("{{yesterday}}", self.NOTE_DATE)
         assert result == "2026-03-02"
 
     def test_tomorrow(self):
-        result = render_obsidian_template('{{ tomorrow }}', self.NOTE_DATE)
+        result = render_obsidian_template("{{ tomorrow }}", self.NOTE_DATE)
         assert result == "2026-03-04"
 
     def test_full_template(self):
         tpl = 'day: "{{date:YYYY-MM-DD}}"\nPrevious: "[[{{yesterday}}]]"\nNext: "[[{{ tomorrow }}]]"\nWeek: "[[{{date:YYYY-[W]W}}]]"'
         result = render_obsidian_template(tpl, self.NOTE_DATE)
-        assert '2026-03-03' in result
-        assert '2026-03-02' in result
-        assert '2026-03-04' in result
-        assert '2026-W10' in result
+        assert "2026-03-03" in result
+        assert "2026-03-02" in result
+        assert "2026-03-04" in result
+        assert "2026-W10" in result
 
 
 class TestParseMemoTime:
@@ -137,9 +137,7 @@ class TestMemoNotePath:
 
 class TestRenderMemoNote:
     def test_includes_date_time_source_and_entry(self):
-        content = render_memo_note(
-            date(2026, 9, 11), "20:01", "2026-09-11-20-01-43.m4a", "Finished journal entry."
-        )
+        content = render_memo_note(date(2026, 9, 11), "20:01", "2026-09-11-20-01-43.m4a", "Finished journal entry.")
         assert "date: 2026-09-11" in content
         assert 'time: "20:01"' in content
         assert "type: voice-memo" in content

@@ -72,10 +72,7 @@ def extract(provider: BaseProvider, transcription: str) -> str:
     if not response:
         return transcription
 
-    if (
-        len(transcription) < SHORT_TRANSCRIPT_CHARS
-        and len(response) > len(transcription) * MAX_EXPANSION_RATIO
-    ):
+    if len(transcription) < SHORT_TRANSCRIPT_CHARS and len(response) > len(transcription) * MAX_EXPANSION_RATIO:
         return transcription
 
     return response
