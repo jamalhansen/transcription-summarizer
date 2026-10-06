@@ -205,7 +205,10 @@ def main(
         cli_val=model,
         default="llama3.2:3b" if provider in ("local", "ollama") else None,
     )
-    whisper_model = get_setting(_TOOL_NAME, "whisper_model", cli_val=whisper_model, default=DEFAULT_WHISPER_MODEL)
+    whisper_model = str(
+        get_setting(_TOOL_NAME, "whisper_model", cli_val=whisper_model, default=DEFAULT_WHISPER_MODEL)
+        or DEFAULT_WHISPER_MODEL
+    )
     memo_dir = get_setting(_TOOL_NAME, "memo_dir", cli_val=memo_dir, default=DEFAULT_MEMO_DIR)
     if not all_files:
         all_files = bool(get_setting(_TOOL_NAME, "all", default=False))

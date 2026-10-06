@@ -28,4 +28,4 @@ def transcribe_audio(path: Path, model: str = DEFAULT_WHISPER_MODEL) -> str:
     except Exception as e:
         raise AudioTranscribeError(f"Whisper transcription failed for {path.name}: {e}") from e
 
-    return (result.get("text") or "").strip()
+    return str(result.get("text") or "").strip()
